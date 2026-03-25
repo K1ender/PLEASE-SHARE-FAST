@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
@@ -20,6 +21,32 @@ func Run(ctx context.Context) error {
 	http := httptransport.New(":8080", fileService)
 
 	slog.Info("starting server")
+
+	ticker := time.NewTicker(time.Hour)
+
+	go func() {
+		for range ticker.C {
+			files, err := fileService.GetAllFiles()
+			if err != nil {
+				slog.Error("failed to delete old files", slog.Any("error", err))
+			}
+
+			for _, id := range files {
+				fileMetadata, err := fileService.HeadFile(id)
+				if err != nil {
+					slog.Error("failed to delete old files", slog.Any("error", err))
+				}
+				if time.Since(fileMetadata.CreatedAt) > 24*time.Hour {
+					continue
+				}
+
+				err = fileService.DeleteFile(id)
+				if err != nil {
+					slog.Error("failed to delete old files", slog.Any("error", err))
+				}
+			}
+		}
+	}()
 
 	go func() {
 		err := http.Run(ctx)

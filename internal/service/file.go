@@ -7,12 +7,16 @@ import (
 	"io"
 	v2 "math/rand/v2"
 
+	"github.com/k1ender/psf/internal/model"
 	"github.com/k1ender/psf/internal/repository"
 )
 
 type File interface {
 	SaveFile(file io.Reader, filename string) (string, error)
 	GetFile(id string) ([]byte, string, error)
+	GetAllFiles() ([]string, error)
+	DeleteFile(id string) error
+	HeadFile(id string) (model.FileMetadata, error)
 }
 
 type Service struct {
@@ -57,6 +61,33 @@ func (s *Service) SaveFile(fileData io.Reader, filename string) (string, error) 
 	}
 
 	return hash, nil
+}
+
+func (s *Service) GetAllFiles() ([]string, error) {
+	ids, err := s.repository.GetAllFiles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all files: %w", err)
+	}
+
+	return ids, nil
+}
+
+func (s *Service) DeleteFile(id string) error {
+	err := s.repository.DeleteFile(id)
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) HeadFile(id string) (model.FileMetadata, error) {
+	metadata, err := s.repository.HeadFile(id)
+	if err != nil {
+		return model.FileMetadata{}, fmt.Errorf("failed to get file metadata: %w", err)
+	}
+
+	return metadata, nil
 }
 
 var ra *v2.ChaCha8

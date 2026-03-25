@@ -21,6 +21,8 @@ type File interface {
 	) error
 	GetFile(id string) (model.File, error)
 	HeadFile(id string) (model.FileMetadata, error)
+	GetAllFiles() ([]string, error)
+	DeleteFile(id string) error
 }
 
 type InMemoryRepository struct {
@@ -29,6 +31,11 @@ type InMemoryRepository struct {
 }
 
 func NewInMemoryRepository() File {
+	err := os.MkdirAll("data", 0755)
+	if err != nil {
+		panic(err)
+	}
+
 	return &InMemoryRepository{
 		files:  make(map[string]model.FileMetadata),
 		folder: "data",
@@ -85,4 +92,25 @@ func (i *InMemoryRepository) HeadFile(id string) (model.FileMetadata, error) {
 	}
 
 	return f, nil
+}
+
+// GetAllFiles implements [File].
+func (i *InMemoryRepository) GetAllFiles() ([]string, error) {
+	files := make([]string, 0, len(i.files))
+	for id := range i.files {
+		files = append(files, id)
+	}
+	return files, nil
+}
+
+// DeleteFile implements [File].
+func (i *InMemoryRepository) DeleteFile(id string) error {
+	err := os.Remove(fmt.Sprintf("%s/%s", i.folder, id))
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	delete(i.files, id)
+
+	return nil
 }
