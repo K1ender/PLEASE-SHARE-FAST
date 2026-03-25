@@ -1,6 +1,13 @@
 package model
 
+import "time"
+
 type File struct {
-	Data     []byte
-	Filename string
+	Data []byte
+	FileMetadata
+}
+
+type FileMetadata struct {
+	Filename  string
+	CreatedAt time.Time
 }

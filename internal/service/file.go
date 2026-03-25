@@ -1,10 +1,12 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
+	v2 "math/rand/v2"
 
-	"github.com/k1ender/psf/internal/model"
 	"github.com/k1ender/psf/internal/repository"
 )
 
@@ -32,20 +34,41 @@ func (s *Service) GetFile(id string) ([]byte, string, error) {
 }
 
 // SaveFile implements [File].
-func (s *Service) SaveFile(file io.Reader, filename string) (string, error) {
-	data, err := io.ReadAll(file)
+func (s *Service) SaveFile(fileData io.Reader, filename string) (string, error) {
+	data, err := io.ReadAll(fileData)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
-	files := model.File{
-		Data:     data,
-		Filename: filename,
+
+	var hash string
+
+	// FIXME: maybe there is a better way
+	for {
+		hash = randomString(3)
+		_, err := s.repository.HeadFile(hash)
+		if err != nil {
+			break
+		}
 	}
 
-	hash, err := s.repository.UploadFile(files)
+	err = s.repository.UploadFile(hash, filename, data)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
 	return hash, nil
+}
+
+var ra *v2.ChaCha8
+
+func init() {
+	buf := [32]byte{}
+	rand.Read(buf[:])
+	ra = v2.NewChaCha8(buf)
+}
+
+func randomString(len int) string {
+	buf := make([]byte, len)
+	ra.Read(buf)
+	return hex.EncodeToString(buf)
 }
