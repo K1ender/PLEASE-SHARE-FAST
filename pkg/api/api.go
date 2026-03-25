@@ -9,54 +9,47 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/k1ender/psf/internal/cleaner"
+	"github.com/k1ender/psf/internal/logger"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
 	httptransport "github.com/k1ender/psf/internal/transport/http"
+	slogzap "github.com/samber/slog-zap/v2"
+	"go.uber.org/zap"
 )
 
 func Run(ctx context.Context) error {
+	zaplog := zap.Must(zap.NewProduction())
+	log := slog.New(slogzap.Option{Level: slog.LevelInfo, Logger: zaplog}.NewZapHandler())
+
+	ctx = logger.WithLogger(ctx, log)
+
 	filerepo := repository.NewInMemoryRepository()
 	fileService := service.NewService(filerepo)
 
+	clean := cleaner.NewInMemoryCleaner(fileService)
+
 	http := httptransport.New(":8080", fileService)
 
-	slog.Info("starting server")
+	log.Info("starting server")
 
 	ticker := time.NewTicker(time.Hour)
 
 	go func() {
 		for range ticker.C {
-			files, err := fileService.GetAllFiles()
-			if err != nil {
-				slog.Error("failed to delete old files", slog.Any("error", err))
-			}
-
-			for _, id := range files {
-				fileMetadata, err := fileService.HeadFile(id)
-				if err != nil {
-					slog.Error("failed to delete old files", slog.Any("error", err))
-				}
-				if time.Since(fileMetadata.CreatedAt) > 24*time.Hour {
-					continue
-				}
-
-				err = fileService.DeleteFile(id)
-				if err != nil {
-					slog.Error("failed to delete old files", slog.Any("error", err))
-				}
-			}
+			clean.Clean(ctx)
 		}
 	}()
 
 	go func() {
 		err := http.Run(ctx)
 		if err != nil {
-			slog.Error("failed to start server", slog.Any("error", err))
+			log.Error("failed to start server", slog.Any("error", err))
 			panic(err)
 		}
 	}()
 
-	slog.Info("server started", slog.String("address", ":8080"))
+	log.Info("server started", slog.String("address", ":8080"))
 
 	shutdown := make(chan os.Signal, 1)
 
@@ -64,15 +57,15 @@ func Run(ctx context.Context) error {
 
 	<-shutdown
 
-	slog.Info("shutting down server")
+	log.Info("shutting down server")
 
 	err := http.Shutdown(ctx)
 	if err != nil {
-		slog.Error("failed to shutdown server", slog.Any("error", err))
+		log.Error("failed to shutdown server", slog.Any("error", err))
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
 
-	slog.Info("server shutdown")
+	log.Info("server shutdown")
 
 	return nil
 }

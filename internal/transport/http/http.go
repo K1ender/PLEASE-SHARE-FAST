@@ -2,12 +2,17 @@ package httptransport
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
 
+	"github.com/k1ender/psf/internal/logger"
+	"github.com/k1ender/psf/internal/middleware"
+	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
 	"github.com/k1ender/psf/templates"
 )
@@ -30,11 +35,15 @@ func New(addr string, fileService service.File) *Server {
 
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		log := logger.FromContext(ctx)
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		data, err := templates.GetTemplate(templates.Upload)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.ErrorContext(ctx, "failed to get template", slog.Any("error", err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
@@ -42,15 +51,20 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	})
 
 	mux.HandleFunc("POST /upload", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		log := logger.FromContext(ctx)
+
 		file, headers, err := r.FormFile("file")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.ErrorContext(ctx, "failed to get file", slog.Any("error", err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
-		id, err := s.fileService.SaveFile(file, headers.Filename)
+		id, err := s.fileService.SaveFile(ctx, file, headers.Filename)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.ErrorContext(ctx, "failed to save file", slog.Any("error", err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
@@ -61,24 +75,38 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	})
 
 	mux.HandleFunc("GET /file/{id}", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		log := logger.FromContext(ctx)
+
 		id := r.PathValue("id")
-		file, filename, err := s.fileService.GetFile(id)
-		extension := filepath.Ext(filename)
+
+		file, filename, err := s.fileService.GetFile(ctx, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			if errors.Is(err, repository.ErrNotFound) {
+				log.InfoContext(ctx, "file not found")
+				http.NotFound(w, r)
+				return
+			}
+
+			log.ErrorContext(ctx, "failed to get file", slog.Any("error", err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
-		ext := strings.TrimPrefix(extension, ".")
-		w.Header().Set("Content-Type", mime.TypeByExtension("."+ext))
+		extension := filepath.Ext(filename)
+		extension = strings.TrimPrefix(extension, ".")
+
+		w.Header().Set("Content-Type", mime.TypeByExtension("."+extension))
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Length", fmt.Sprint(len(file)))
 
 		_, err = w.Write(file)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.ErrorContext(ctx, "failed to write file", slog.Any("error", err))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 }
 
@@ -86,7 +114,11 @@ func (s *Server) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	s.RegisterRoutes(mux)
 
-	s.httpServer.Handler = mux
+	var handler http.Handler = mux
+	handler = middleware.RequestID(handler)
+	handler = logger.Middleware(handler)
+
+	s.httpServer.Handler = handler
 
 	err := s.httpServer.ListenAndServe()
 	if err != http.ErrServerClosed {
@@ -98,7 +130,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	err := s.httpServer.Shutdown(ctx)
-	if err == http.ErrServerClosed {
+	if err != nil && err != http.ErrServerClosed {
 		return nil
 	}
 

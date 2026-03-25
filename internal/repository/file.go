@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -15,14 +16,15 @@ var (
 
 type File interface {
 	UploadFile(
+		ctx context.Context,
 		hash string,
 		fileName string,
 		data []byte,
 	) error
-	GetFile(id string) (model.File, error)
-	HeadFile(id string) (model.FileMetadata, error)
-	GetAllFiles() ([]string, error)
-	DeleteFile(id string) error
+	GetFile(ctx context.Context, id string) (model.File, error)
+	HeadFile(ctx context.Context, id string) (model.FileMetadata, error)
+	GetAllFiles(ctx context.Context) ([]string, error)
+	DeleteFile(ctx context.Context, id string) error
 }
 
 type InMemoryRepository struct {
@@ -43,7 +45,7 @@ func NewInMemoryRepository() File {
 }
 
 // GetFile implements [File].
-func (i *InMemoryRepository) GetFile(id string) (
+func (i *InMemoryRepository) GetFile(ctx context.Context, id string) (
 	model.File,
 	error,
 ) {
@@ -68,6 +70,7 @@ func (i *InMemoryRepository) GetFile(id string) (
 
 // UploadFile implements [File].
 func (i *InMemoryRepository) UploadFile(
+	ctx context.Context,
 	hash string,
 	fileName string,
 	data []byte,
@@ -85,7 +88,7 @@ func (i *InMemoryRepository) UploadFile(
 }
 
 // HeadFile implements [File].
-func (i *InMemoryRepository) HeadFile(id string) (model.FileMetadata, error) {
+func (i *InMemoryRepository) HeadFile(ctx context.Context, id string) (model.FileMetadata, error) {
 	f, ok := i.files[id]
 	if !ok {
 		return model.FileMetadata{}, ErrNotFound
@@ -95,7 +98,7 @@ func (i *InMemoryRepository) HeadFile(id string) (model.FileMetadata, error) {
 }
 
 // GetAllFiles implements [File].
-func (i *InMemoryRepository) GetAllFiles() ([]string, error) {
+func (i *InMemoryRepository) GetAllFiles(ctx context.Context) ([]string, error) {
 	files := make([]string, 0, len(i.files))
 	for id := range i.files {
 		files = append(files, id)
@@ -104,7 +107,7 @@ func (i *InMemoryRepository) GetAllFiles() ([]string, error) {
 }
 
 // DeleteFile implements [File].
-func (i *InMemoryRepository) DeleteFile(id string) error {
+func (i *InMemoryRepository) DeleteFile(ctx context.Context, id string) error {
 	err := os.Remove(fmt.Sprintf("%s/%s", i.folder, id))
 	if err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
