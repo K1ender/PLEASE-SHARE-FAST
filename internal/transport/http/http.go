@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/k1ender/psf/internal/logger"
 	"github.com/k1ender/psf/internal/middleware"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
@@ -36,7 +35,7 @@ func New(addr string, fileService service.File) *Server {
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := logger.FromContext(ctx)
+		log := middleware.FromContext(ctx)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -52,7 +51,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /upload", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := logger.FromContext(ctx)
+		log := middleware.FromContext(ctx)
 
 		file, headers, err := r.FormFile("file")
 		if err != nil {
@@ -76,7 +75,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /file/{id}", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := logger.FromContext(ctx)
+		log := middleware.FromContext(ctx)
 
 		id := r.PathValue("id")
 
@@ -115,8 +114,8 @@ func (s *Server) Run(ctx context.Context) error {
 	s.RegisterRoutes(mux)
 
 	var handler http.Handler = mux
+	handler = middleware.Logger(handler)
 	handler = middleware.RequestID(handler)
-	handler = logger.Middleware(handler)
 
 	s.httpServer.Handler = handler
 
