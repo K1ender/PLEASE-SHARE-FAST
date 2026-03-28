@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/k1ender/psf/internal/config"
 	"github.com/k1ender/psf/internal/middleware"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
@@ -21,9 +22,9 @@ type Server struct {
 	fileService service.File
 }
 
-func New(addr string, fileService service.File) *Server {
+func New(cfg config.HTTP, fileService service.File) *Server {
 	server := &http.Server{
-		Addr: addr,
+		Addr: fmt.Sprintf("%s:%d", cfg.Addr, cfg.Port),
 	}
 
 	return &Server{

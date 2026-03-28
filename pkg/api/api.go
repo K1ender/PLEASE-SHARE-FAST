@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/k1ender/psf/internal/cleaner"
+	"github.com/k1ender/psf/internal/config"
 	"github.com/k1ender/psf/internal/middleware"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
@@ -19,6 +20,8 @@ import (
 )
 
 func Run(ctx context.Context) error {
+	cfg := config.MustInit()
+
 	zaplog := zap.Must(zap.NewProduction())
 	log := slog.New(slogzap.Option{Level: slog.LevelInfo, Logger: zaplog}.NewZapHandler())
 
@@ -29,7 +32,7 @@ func Run(ctx context.Context) error {
 
 	clean := cleaner.NewInMemoryCleaner(fileService)
 
-	http := httptransport.New(":8080", fileService)
+	http := httptransport.New(cfg.HTTP, fileService)
 
 	log.Info("starting server")
 
