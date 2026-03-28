@@ -11,7 +11,7 @@ import (
 
 	"github.com/k1ender/psf/internal/cleaner"
 	"github.com/k1ender/psf/internal/config"
-	"github.com/k1ender/psf/internal/middleware"
+	"github.com/k1ender/psf/internal/logger"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
 	httptransport "github.com/k1ender/psf/internal/transport/http"
@@ -25,7 +25,9 @@ func Run(ctx context.Context) error {
 	zaplog := zap.Must(zap.NewProduction())
 	log := slog.New(slogzap.Option{Level: slog.LevelInfo, Logger: zaplog}.NewZapHandler())
 
-	ctx = middleware.WithLogger(ctx, log)
+	ctx = logger.WithLogger(ctx, log)
+
+	log.Warn("You using in-memory repository, it will delete all files after restart", slog.String("repository", "in-memory"))
 
 	filerepo := repository.NewInMemoryRepository()
 	fileService := service.NewService(filerepo)

@@ -11,11 +11,14 @@ import (
 	"strings"
 
 	"github.com/k1ender/psf/internal/config"
+	"github.com/k1ender/psf/internal/logger"
 	"github.com/k1ender/psf/internal/middleware"
 	"github.com/k1ender/psf/internal/repository"
 	"github.com/k1ender/psf/internal/service"
 	"github.com/k1ender/psf/templates"
 )
+
+// #2016
 
 type Server struct {
 	httpServer  *http.Server
@@ -36,7 +39,7 @@ func New(cfg config.HTTP, fileService service.File) *Server {
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := middleware.FromContext(ctx)
+		log := logger.FromContext(ctx)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -52,7 +55,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /upload", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := middleware.FromContext(ctx)
+		log := logger.FromContext(ctx)
 
 		file, headers, err := r.FormFile("file")
 		if err != nil {
@@ -76,7 +79,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /file/{id}", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := middleware.FromContext(ctx)
+		log := logger.FromContext(ctx)
 
 		id := r.PathValue("id")
 

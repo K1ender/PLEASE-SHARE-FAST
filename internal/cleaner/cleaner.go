@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/k1ender/psf/internal/middleware"
+	"github.com/k1ender/psf/internal/logger"
 	"github.com/k1ender/psf/internal/service"
 )
 
@@ -22,7 +22,7 @@ func NewInMemoryCleaner(fileService service.File) Cleaner {
 }
 
 func (c *InMemoryCleaner) Clean(ctx context.Context) error {
-	log := middleware.FromContext(ctx)
+	log := logger.FromContext(ctx)
 
 	log.Info("cleaning up old files")
 

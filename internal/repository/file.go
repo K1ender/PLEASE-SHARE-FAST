@@ -33,7 +33,12 @@ type InMemoryRepository struct {
 }
 
 func NewInMemoryRepository() File {
-	err := os.MkdirAll("data", 0755)
+	_, err := os.Stat("data")
+	if err == nil {
+		os.RemoveAll("data")
+	}
+
+	err = os.MkdirAll("data", 0755)
 	if err != nil {
 		panic(err)
 	}
