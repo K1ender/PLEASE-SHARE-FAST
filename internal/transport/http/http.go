@@ -109,7 +109,6 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	})
 }
 
