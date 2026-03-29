@@ -1,0 +1,11 @@
+version: "3"
+
+vars:
+  API: cmd/api/main.go
+
+tasks:
+  default:
+    desc: Run api application
+    cmds:
+      - go run "{{.API}}"
+    silent: true
