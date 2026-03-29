@@ -47,10 +47,12 @@
       <input name="file" type="file" required />
       <button type="submit">Upload</button>
     </form>
+    <p class="uploadLink"></p>
 
     <script>
       const fileUpload = document.querySelector("input");
       const uploadFileButton = document.querySelector("button");
+      const uploadLink = document.querySelector(".uploadLink");
       fileUpload.style.display = "none";
 
       uploadFileButton.addEventListener("click", async (e) => {
@@ -71,7 +73,8 @@
         });
 
         const data = await response.text();
-        console.log(data);
+
+        uploadLink.innerHTML = `<a href="/file/${data}" target="_blank">${data}</a>`;
       });
     </script>
   </body>
