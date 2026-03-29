@@ -6,7 +6,15 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+type Env string
+
+const (
+	Development Env = "development"
+	Production  Env = "production"
+)
+
 type Config struct {
+	Env  Env `env:"ENV" env-default:"production"`
 	HTTP HTTP
 }
 

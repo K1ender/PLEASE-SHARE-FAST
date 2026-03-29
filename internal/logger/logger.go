@@ -21,6 +21,6 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return logger
 }
 
-func L(ctx context.Context) *slog.Logger {
-	return FromContext(ctx)
+func L() *slog.Logger {
+	return slog.Default()
 }

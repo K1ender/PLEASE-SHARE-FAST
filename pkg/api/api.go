@@ -22,8 +22,20 @@ import (
 func Run(ctx context.Context) error {
 	cfg := config.MustInit()
 
-	zaplog := zap.Must(zap.NewProduction())
-	log := slog.New(slogzap.Option{Level: slog.LevelInfo, Logger: zaplog}.NewZapHandler())
+	var zaplog *zap.Logger
+	var log *slog.Logger
+
+	if cfg.Env == config.Development {
+		zaplog = zap.Must(
+			zap.NewDevelopment(
+				zap.AddStacktrace(zap.ErrorLevel),
+			),
+		)
+		log = slog.New(slogzap.Option{AddSource: true, Level: slog.LevelDebug, Logger: zaplog}.NewZapHandler())
+	} else {
+		zaplog = zap.Must(zap.NewProduction())
+		log = slog.New(slogzap.Option{Level: slog.LevelInfo, Logger: zaplog}.NewZapHandler())
+	}
 
 	ctx = logger.WithLogger(ctx, log)
 
