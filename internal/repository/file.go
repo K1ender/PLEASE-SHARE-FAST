@@ -61,10 +61,10 @@ func (i *InMemoryRepository) GetFile(ctx context.Context, id string) (
 
 	fileData, err := os.ReadFile(fmt.Sprintf("%s/%s", i.folder, id))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return model.File{}, ErrNotFound
+		}
 		return model.File{}, fmt.Errorf("failed to read file: %w", err)
-	}
-	if errors.Is(err, os.ErrNotExist) {
-		return model.File{}, ErrNotFound
 	}
 
 	return model.File{
